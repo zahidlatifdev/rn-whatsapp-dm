@@ -10,11 +10,16 @@
     "test": "jest"
   },
   "dependencies": {
+    "@pushpendersingh/react-native-scanner": "^1.2.0",
     "@react-native-async-storage/async-storage": "^2.0.0",
     "@react-native-picker/picker": "^2.9.0",
+    "i": "^0.3.7",
+    "npm": "^10.9.0",
     "react": "18.3.1",
     "react-native": "0.76.1",
+    "react-native-camera": "^4.2.1",
     "react-native-fs": "^2.20.0",
+    "react-native-qrcode-scanner": "^1.5.5",
     "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {

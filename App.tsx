@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -15,13 +15,13 @@ import {
   StatusBar,
   SafeAreaView,
   Image,
-  FlatList,
-  PermissionsAndroid,
   Alert,
+  PermissionsAndroid,
 } from 'react-native';
 import {Picker} from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
+import {ReactNativeScannerView} from '@pushpendersingh/react-native-scanner';
 
 const countryCodes = [
   {value: '1', label: 'USA (+1)'},
@@ -42,6 +42,25 @@ const messageTemplates = [
   'Please call me back.',
 ];
 
+const requestCameraPermission = async () => {
+  try {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.CAMERA,
+      {
+        title: 'Camera Permission',
+        message: 'App needs camera permission to scan QR codes',
+        buttonNeutral: 'Ask Me Later',
+        buttonNegative: 'Cancel',
+        buttonPositive: 'OK',
+      },
+    );
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  } catch (err) {
+    console.warn(err);
+    return false;
+  }
+};
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState('directMessage');
   const [countryCode, setCountryCode] = useState('1');
@@ -52,6 +71,7 @@ export default function App() {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(1));
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedApp, setSelectedApp] = useState('whatsapp');
 
   useEffect(() => {
     loadRecentMessages();
@@ -124,32 +144,38 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     const fullNumber = `+${countryCode}${phoneNumber}`;
     const encodedMessage = encodeURIComponent(message);
-    const url = `whatsapp://send?phone=${fullNumber}&text=${encodedMessage}`;
+    const url = `whatsapp://send?phone=${fullNumber.replace(
+      '+',
+      '',
+    )}&text=${encodedMessage}`;
 
-    Linking.canOpenURL(url)
-      .then(supported => {
-        if (!supported) {
-          Alert.alert('WhatsApp is not installed on this device');
-        } else {
-          return Linking.openURL(url);
-        }
-      })
-      .catch(err => console.error('An error occurred', err));
+    try {
+      await Linking.openURL(url);
+      // If successful, save to history
+      const newMessage = {
+        number: fullNumber,
+        message: message.slice(0, 30) + '...',
+        date: new Date().toISOString(),
+        appType: selectedApp,
+      };
+      const updatedMessages = [newMessage, ...recentMessages.slice(0, 4)];
+      setRecentMessages(updatedMessages);
+      saveRecentMessages(updatedMessages);
 
-    const newMessage = {
-      number: fullNumber,
-      message: message.slice(0, 30) + '...',
-      date: new Date().toISOString(),
-    };
-    const updatedMessages = [newMessage, ...recentMessages.slice(0, 4)];
-    setRecentMessages(updatedMessages);
-    saveRecentMessages(updatedMessages);
-
-    setPhoneNumber('');
-    setMessage('');
+      setPhoneNumber('');
+      setMessage('');
+    } catch (err) {
+      console.error('Error opening WhatsApp:', err);
+      Alert.alert(
+        'Error',
+        `Could not open ${
+          selectedApp === 'whatsapp' ? 'WhatsApp' : 'WhatsApp Business'
+        }. Please make sure it is installed.`,
+      );
+    }
   };
 
   const toggleDarkMode = value => {
@@ -157,30 +183,71 @@ export default function App() {
     saveDarkModeSetting(value);
   };
 
-  const handleTemplateChange = (template) => {
+  const handleTemplateChange = template => {
     setSelectedTemplate(template);
     setMessage(template);
   };
 
   const clearHistory = async () => {
     Alert.alert(
-      "Clear History",
-      "Are you sure you want to clear all recent messages?",
+      'Clear History',
+      'Are you sure you want to clear all recent messages?',
       [
         {
-          text: "Cancel",
-          style: "cancel"
+          text: 'Cancel',
+          style: 'cancel',
         },
         {
-          text: "Clear",
-          style: "destructive",
+          text: 'Clear',
+          style: 'destructive',
           onPress: async () => {
             setRecentMessages([]);
             await AsyncStorage.setItem('recentMessages', JSON.stringify([]));
+          },
+        },
+      ],
+    );
+  };
+
+  const handleQRCodeScanned = ({nativeEvent}) => {
+    const scannedValue = nativeEvent.value;
+    console.log('Scanned value:', scannedValue);
+    
+    // Handle different WhatsApp QR code formats
+    if (scannedValue) {
+      // Regular WhatsApp number format: wa.me/1234567890
+      const phoneNumberMatch = scannedValue.match(/wa\.me\/(\d+)/);
+      
+      // WhatsApp business link format: wa.me/message/XXXXX
+      const businessMatch = scannedValue.match(/wa\.me\/message\//);
+      
+      if (phoneNumberMatch && phoneNumberMatch[1]) {
+        const scannedNumber = phoneNumberMatch[1];
+        // Extract country code and phone number
+        for (const country of countryCodes) {
+          if (scannedNumber.startsWith(country.value)) {
+            setCountryCode(country.value);
+            setPhoneNumber(scannedNumber.substring(country.value.length));
+            setCurrentPage('directMessage');
+            setSelectedApp('whatsapp');
+            return;
           }
         }
-      ]
-    );
+        // If no matching country code found, just set the whole number
+        setPhoneNumber(scannedNumber);
+        setCurrentPage('directMessage');
+      } else if (businessMatch) {
+        // Handle business link
+        setSelectedApp('business');
+        setCurrentPage('directMessage');
+        Alert.alert(
+          'Business Account',
+          'This is a WhatsApp Business account link. Please enter the phone number manually.',
+        );
+      } else {
+        Alert.alert('Invalid QR Code', 'Please scan a valid WhatsApp QR code');
+      }
+    }
   };
 
   const styles = StyleSheet.create({
@@ -319,16 +386,134 @@ export default function App() {
       marginTop: 10,
       marginBottom: 20,
     },
+    appSelector: {
+      flexDirection: 'row',
+      marginBottom: 16,
+      backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
+      borderRadius: 8,
+      overflow: 'hidden',
+    },
+    appOption: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    selectedAppOption: {
+      backgroundColor: '#25D366',
+    },
+    appOptionText: {
+      color: isDarkMode ? '#FFFFFF' : '#000000',
+      fontSize: 16,
+    },
+    selectedAppOptionText: {
+      color: '#FFFFFF',
+    },
+    appTypeTag: {
+      marginTop: 8,
+      backgroundColor: '#25D366',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 4,
+      alignSelf: 'flex-start',
+    },
+    appTypeText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+    },
+    scannerContainer: {
+      flex: 1,
+      backgroundColor: isDarkMode ? '#121212' : '#F0F0F0',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    centerText: {
+      flex: 0,
+      fontSize: 18,
+      padding: 32,
+      color: isDarkMode ? '#FFFFFF' : '#000000',
+    },
+    buttonTouchable: {
+      padding: 16,
+    },
+    cameraContainer: {
+      flex: 1,
+    },
+    scannerOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    scannerFrame: {
+      width: 250,
+      height: 250,
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+      borderRadius: 12,
+    },
+    scannerText: {
+      color: '#FFF',
+      fontSize: 16,
+      marginTop: 20,
+      textAlign: 'center',
+    },
   });
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'scanner':
+        return (
+          <View style={styles.scannerContainer}>
+            <ReactNativeScannerView
+              style={styles.cameraContainer}
+              onQrScanned={handleQRCodeScanned}
+            />
+            <View style={styles.scannerOverlay}>
+              <View style={styles.scannerFrame} />
+              <Text style={styles.scannerText}>
+                Align QR code within frame to scan
+              </Text>
+            </View>
+          </View>
+        );
       case 'directMessage':
         return (
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{flex: 1}}>
             <ScrollView>
+              <View style={styles.appSelector}>
+                <TouchableOpacity
+                  style={[
+                    styles.appOption,
+                    selectedApp === 'whatsapp' && styles.selectedAppOption,
+                  ]}
+                  onPress={() => setSelectedApp('whatsapp')}>
+                  <Text
+                    style={[
+                      styles.appOptionText,
+                      selectedApp === 'whatsapp' &&
+                        styles.selectedAppOptionText,
+                    ]}>
+                    WhatsApp
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.appOption,
+                    selectedApp === 'business' && styles.selectedAppOption,
+                  ]}
+                  onPress={() => setSelectedApp('business')}>
+                  <Text
+                    style={[
+                      styles.appOptionText,
+                      selectedApp === 'business' &&
+                        styles.selectedAppOptionText,
+                    ]}>
+                    Business
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={countryCode}
@@ -352,8 +537,8 @@ export default function App() {
                 keyboardType="phone-pad"
               />
               <View style={styles.templateBubbleContainer}>
-                <ScrollView 
-                  horizontal 
+                <ScrollView
+                  horizontal
                   showsHorizontalScrollIndicator={false}
                   style={styles.templateBubbleScroll}>
                   {messageTemplates.map((template, index) => (
@@ -361,13 +546,15 @@ export default function App() {
                       key={index}
                       style={[
                         styles.templateBubble,
-                        selectedTemplate === template && styles.selectedTemplateBubble,
+                        selectedTemplate === template &&
+                          styles.selectedTemplateBubble,
                       ]}
                       onPress={() => handleTemplateChange(template)}>
                       <Text
                         style={[
                           styles.templateBubbleText,
-                          selectedTemplate === template && styles.selectedTemplateBubbleText,
+                          selectedTemplate === template &&
+                            styles.selectedTemplateBubbleText,
                         ]}>
                         {template}
                       </Text>
@@ -411,32 +598,17 @@ export default function App() {
                       <Text style={styles.messageDate}>
                         {new Date(msg.date).toLocaleString()}
                       </Text>
+                      <View style={styles.appTypeTag}>
+                        <Text style={styles.appTypeText}>
+                          {msg.appType === 'whatsapp' ? 'WhatsApp' : 'Business'}
+                        </Text>
+                      </View>
                     </View>
                   ))}
                 </ScrollView>
               </>
             )}
           </View>
-        );
-        return (
-          <FlatList
-            data={statuses}
-            renderItem={({item}) => (
-              <View style={styles.statusItem}>
-                <Image
-                  source={{uri: `file://${item.path}`}}
-                  style={styles.statusImage}
-                />
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={() => saveStatus(item)}>
-                  <Text style={styles.saveButtonText}>Save to Gallery</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            keyExtractor={item => item.path}
-            numColumns={2}
-          />
         );
       case 'about':
         return (
@@ -471,6 +643,20 @@ export default function App() {
     }
   };
 
+  const handlePageChange = async page => {
+    if (page === 'scanner') {
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        Alert.alert(
+          'Permission Denied',
+          'Camera permission is required to scan QR codes.',
+        );
+        return;
+      }
+    }
+    setCurrentPage(page);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
@@ -493,11 +679,11 @@ export default function App() {
         />
       </View>
       <View style={styles.content}>{renderPage()}</View>
-      {!isKeyboardVisible && (
+      {!isKeyboardVisible && currentPage !== 'scanner' && (
         <Animated.View style={[styles.bottomNav, {opacity: fadeAnim}]}>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('directMessage')}>
+            onPress={() => handlePageChange('directMessage')}>
             <Icon
               name="send"
               size={24}
@@ -517,9 +703,33 @@ export default function App() {
               Send
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('recentMessages')}>
+            onPress={() => handlePageChange('scanner')}>
+            <Icon
+              name="qr-code"
+              size={24}
+              color={
+                currentPage === 'scanner'
+                  ? '#25D366'
+                  : isDarkMode
+                  ? '#FFFFFF'
+                  : '#000000'
+              }
+            />
+            <Text
+              style={[
+                styles.navButtonText,
+                currentPage === 'scanner' && {color: '#25D366'},
+              ]}>
+              Scan
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => handlePageChange('recentMessages')}>
             <Icon
               name="chatbubbles"
               size={24}
@@ -539,9 +749,10 @@ export default function App() {
               Recent
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('about')}>
+            onPress={() => handlePageChange('about')}>
             <Icon
               name="information-circle"
               size={24}
