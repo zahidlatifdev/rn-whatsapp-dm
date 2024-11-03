@@ -72,6 +72,7 @@ export default function App() {
   const [fadeAnim] = useState(new Animated.Value(1));
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [selectedApp, setSelectedApp] = useState('whatsapp');
+  const [isScanning, setIsScanning] = useState(true);
 
   useEffect(() => {
     loadRecentMessages();
@@ -210,45 +211,63 @@ export default function App() {
   };
 
   const handleQRCodeScanned = ({nativeEvent}) => {
-    const scannedValue = nativeEvent.value;
+    if (!isScanning) return;
+  
+    const scannedValue = nativeEvent?.value;
     console.log('Scanned value:', scannedValue);
-    
-    // Handle different WhatsApp QR code formats
+    setIsScanning(false);
+  
     if (scannedValue) {
-      // Regular WhatsApp number format: wa.me/1234567890
+      // Handle different WhatsApp QR formats
+      const qrMatch = scannedValue.match(/wa\.me\/qr\//);
       const phoneNumberMatch = scannedValue.match(/wa\.me\/(\d+)/);
-      
-      // WhatsApp business link format: wa.me/message/XXXXX
       const businessMatch = scannedValue.match(/wa\.me\/message\//);
-      
-      if (phoneNumberMatch && phoneNumberMatch[1]) {
+  
+      if (qrMatch) {
+        // For wa.me/qr/ links, open them directly
+        Linking.openURL(scannedValue).catch(err => {
+          console.error('Error opening link:', err);
+          Alert.alert(
+            'Error',
+            'Could not open WhatsApp. Please make sure it is installed.',
+          );
+        });
+      } else if (phoneNumberMatch && phoneNumberMatch[1]) {
+        // Handle phone number QR codes
         const scannedNumber = phoneNumberMatch[1];
-        // Extract country code and phone number
+        let foundCountryCode = false;
         for (const country of countryCodes) {
           if (scannedNumber.startsWith(country.value)) {
             setCountryCode(country.value);
             setPhoneNumber(scannedNumber.substring(country.value.length));
-            setCurrentPage('directMessage');
-            setSelectedApp('whatsapp');
-            return;
+            foundCountryCode = true;
+            break;
           }
         }
-        // If no matching country code found, just set the whole number
-        setPhoneNumber(scannedNumber);
+        if (!foundCountryCode) {
+          setPhoneNumber(scannedNumber);
+        }
         setCurrentPage('directMessage');
       } else if (businessMatch) {
-        // Handle business link
-        setSelectedApp('business');
-        setCurrentPage('directMessage');
-        Alert.alert(
-          'Business Account',
-          'This is a WhatsApp Business account link. Please enter the phone number manually.',
-        );
+        // Handle business links
+        Linking.openURL(scannedValue).catch(err => {
+          console.error('Error opening WhatsApp:', err);
+          Alert.alert(
+            'Error',
+            'Could not open WhatsApp Business. Please make sure it is installed.',
+          );
+        });
       } else {
         Alert.alert('Invalid QR Code', 'Please scan a valid WhatsApp QR code');
       }
     }
+  
+    // Reset scanning after delay
+    setTimeout(() => {
+      setIsScanning(true);
+    }, 2000);
   };
+  
 
   const styles = StyleSheet.create({
     container: {
@@ -423,8 +442,6 @@ export default function App() {
     scannerContainer: {
       flex: 1,
       backgroundColor: isDarkMode ? '#121212' : '#F0F0F0',
-      justifyContent: 'center',
-      alignItems: 'center',
     },
     centerText: {
       flex: 0,
@@ -439,10 +456,13 @@ export default function App() {
       flex: 1,
     },
     scannerOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: 'rgba(0,0,0,0.5)',
     },
     scannerFrame: {
       width: 250,
@@ -467,11 +487,14 @@ export default function App() {
             <ReactNativeScannerView
               style={styles.cameraContainer}
               onQrScanned={handleQRCodeScanned}
+              scanEnabled={isScanning}
             />
             <View style={styles.scannerOverlay}>
               <View style={styles.scannerFrame} />
               <Text style={styles.scannerText}>
-                Align QR code within frame to scan
+                {isScanning
+                  ? 'Align QR code within frame to scan'
+                  : 'Processing scan...'}
               </Text>
             </View>
           </View>
@@ -664,11 +687,11 @@ export default function App() {
         <Image source={require('./assets/logo.png')} style={styles.logo} />
         <Text style={styles.headerTitle}>
           {currentPage === 'directMessage'
-            ? 'Send Message'
+            ? 'Send Direct Message'
             : currentPage === 'recentMessages'
             ? 'Recent Messages'
-            : currentPage === 'status'
-            ? 'Statuses'
+            : currentPage === 'scanner'
+            ? 'WhatsApp QR Scanner'
             : 'About'}
         </Text>
         <Switch
@@ -679,7 +702,7 @@ export default function App() {
         />
       </View>
       <View style={styles.content}>{renderPage()}</View>
-      {!isKeyboardVisible && currentPage !== 'scanner' && (
+      {!isKeyboardVisible && (
         <Animated.View style={[styles.bottomNav, {opacity: fadeAnim}]}>
           <TouchableOpacity
             style={styles.navButton}
