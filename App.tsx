@@ -32,6 +32,7 @@ const countryCodes = [
   {value: '49', label: 'Germany (+49)'},
   {value: '33', label: 'France (+33)'},
   {value: '55', label: 'Brazil (+55)'},
+  {value: '92', label: 'Pakistan (+92)'},
 ];
 
 const messageTemplates = [
@@ -146,7 +147,24 @@ export default function App() {
   };
 
   const handleSendMessage = async () => {
-    const fullNumber = `+${countryCode}${phoneNumber}`;
+    let formattedPhoneNumber = phoneNumber;
+
+    // Remove leading zero if present
+    if (formattedPhoneNumber.startsWith('0')) {
+      formattedPhoneNumber = formattedPhoneNumber.substring(1);
+    }
+
+    // Remove country code if present
+    if (formattedPhoneNumber.startsWith(countryCode)) {
+      formattedPhoneNumber = formattedPhoneNumber.substring(countryCode.length);
+    }
+
+    // Remove plus sign if present
+    if (formattedPhoneNumber.startsWith('+')) {
+      formattedPhoneNumber = formattedPhoneNumber.substring(1);
+    }
+
+    const fullNumber = `+${countryCode}${formattedPhoneNumber}`;
     const encodedMessage = encodeURIComponent(message);
     const url = `whatsapp://send?phone=${fullNumber.replace(
       '+',
@@ -212,17 +230,17 @@ export default function App() {
 
   const handleQRCodeScanned = ({nativeEvent}) => {
     if (!isScanning) return;
-  
+
     const scannedValue = nativeEvent?.value;
     console.log('Scanned value:', scannedValue);
     setIsScanning(false);
-  
+
     if (scannedValue) {
       // Handle different WhatsApp QR formats
       const qrMatch = scannedValue.match(/wa\.me\/qr\//);
       const phoneNumberMatch = scannedValue.match(/wa\.me\/(\d+)/);
       const businessMatch = scannedValue.match(/wa\.me\/message\//);
-  
+
       if (qrMatch) {
         // For wa.me/qr/ links, open them directly
         Linking.openURL(scannedValue).catch(err => {
@@ -261,13 +279,12 @@ export default function App() {
         Alert.alert('Invalid QR Code', 'Please scan a valid WhatsApp QR code');
       }
     }
-  
+
     // Reset scanning after delay
     setTimeout(() => {
       setIsScanning(true);
     }, 2000);
   };
-  
 
   const styles = StyleSheet.create({
     container: {
@@ -477,6 +494,28 @@ export default function App() {
       marginTop: 20,
       textAlign: 'center',
     },
+    phoneNumberContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    countryCodeText: {
+      backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
+      color: isDarkMode ? '#FFFFFF' : '#000000',
+      padding: 12,
+      borderTopLeftRadius: 8,
+      borderBottomLeftRadius: 8,
+      fontSize: 16,
+    },
+    phoneNumberInput: {
+      flex: 1,
+      backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
+      color: isDarkMode ? '#FFFFFF' : '#000000',
+      padding: 12,
+      borderTopRightRadius: 8,
+      borderBottomRightRadius: 8,
+      fontSize: 16,
+    },
   });
 
   const renderPage = () => {
@@ -551,14 +590,17 @@ export default function App() {
                   ))}
                 </Picker>
               </View>
-              <TextInput
-                style={styles.input}
-                placeholder="Phone Number"
-                placeholderTextColor={isDarkMode ? '#999999' : '#666666'}
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                keyboardType="phone-pad"
-              />
+              <View style={styles.phoneNumberContainer}>
+                <Text style={styles.countryCodeText}>+{countryCode}</Text>
+                <TextInput
+                  style={styles.phoneNumberInput}
+                  placeholder="Phone Number"
+                  placeholderTextColor={isDarkMode ? '#999999' : '#666666'}
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  keyboardType="phone-pad"
+                />
+              </View>
               <View style={styles.templateBubbleContainer}>
                 <ScrollView
                   horizontal
