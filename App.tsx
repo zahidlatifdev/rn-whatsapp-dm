@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -14,20 +14,32 @@ import {
   KeyboardAvoidingView,
   StatusBar,
   SafeAreaView,
+  Image,
+  FlatList,
+  PermissionsAndroid,
+  Alert,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import {Picker} from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const countryCodes = [
-  { value: '1', label: 'USA (+1)' },
-  { value: '44', label: 'UK (+44)' },
-  { value: '91', label: 'India (+91)' },
-  { value: '86', label: 'China (+86)' },
-  { value: '81', label: 'Japan (+81)' },
-  { value: '49', label: 'Germany (+49)' },
-  { value: '33', label: 'France (+33)' },
-  { value: '55', label: 'Brazil (+55)' },
+  {value: '1', label: 'USA (+1)'},
+  {value: '44', label: 'UK (+44)'},
+  {value: '91', label: 'India (+91)'},
+  {value: '86', label: 'China (+86)'},
+  {value: '81', label: 'Japan (+81)'},
+  {value: '49', label: 'Germany (+49)'},
+  {value: '33', label: 'France (+33)'},
+  {value: '55', label: 'Brazil (+55)'},
+];
+
+const messageTemplates = [
+  'Hello, how are you?',
+  'I am interested in your services.',
+  'Can we schedule a meeting?',
+  'Thank you for your time.',
+  'Please call me back.',
 ];
 
 export default function App() {
@@ -39,6 +51,7 @@ export default function App() {
   const [recentMessages, setRecentMessages] = useState([]);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(1));
+  const [selectedTemplate, setSelectedTemplate] = useState('');
 
   useEffect(() => {
     loadRecentMessages();
@@ -53,7 +66,7 @@ export default function App() {
           duration: 200,
           useNativeDriver: true,
         }).start();
-      }
+      },
     );
     const keyboardDidHideListener = Keyboard.addListener(
       'keyboardDidHide',
@@ -64,7 +77,7 @@ export default function App() {
           duration: 200,
           useNativeDriver: true,
         }).start();
-      }
+      },
     );
 
     return () => {
@@ -95,7 +108,7 @@ export default function App() {
     }
   };
 
-  const saveRecentMessages = async (messages) => {
+  const saveRecentMessages = async messages => {
     try {
       await AsyncStorage.setItem('recentMessages', JSON.stringify(messages));
     } catch (error) {
@@ -103,7 +116,7 @@ export default function App() {
     }
   };
 
-  const saveDarkModeSetting = async (isDark) => {
+  const saveDarkModeSetting = async isDark => {
     try {
       await AsyncStorage.setItem('darkMode', JSON.stringify(isDark));
     } catch (error) {
@@ -117,14 +130,14 @@ export default function App() {
     const url = `whatsapp://send?phone=${fullNumber}&text=${encodedMessage}`;
 
     Linking.canOpenURL(url)
-      .then((supported) => {
+      .then(supported => {
         if (!supported) {
-          alert('WhatsApp is not installed on this device');
+          Alert.alert('WhatsApp is not installed on this device');
         } else {
           return Linking.openURL(url);
         }
       })
-      .catch((err) => console.error('An error occurred', err));
+      .catch(err => console.error('An error occurred', err));
 
     const newMessage = {
       number: fullNumber,
@@ -139,9 +152,35 @@ export default function App() {
     setMessage('');
   };
 
-  const toggleDarkMode = (value) => {
+  const toggleDarkMode = value => {
     setIsDarkMode(value);
     saveDarkModeSetting(value);
+  };
+
+  const handleTemplateChange = (template) => {
+    setSelectedTemplate(template);
+    setMessage(template);
+  };
+
+  const clearHistory = async () => {
+    Alert.alert(
+      "Clear History",
+      "Are you sure you want to clear all recent messages?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            setRecentMessages([]);
+            await AsyncStorage.setItem('recentMessages', JSON.stringify([]));
+          }
+        }
+      ]
+    );
   };
 
   const styles = StyleSheet.create({
@@ -167,6 +206,10 @@ export default function App() {
       fontSize: 20,
       fontWeight: 'bold',
       color: isDarkMode ? '#FFFFFF' : '#000000',
+    },
+    logo: {
+      width: 30,
+      height: 30,
     },
     input: {
       backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
@@ -217,18 +260,6 @@ export default function App() {
       color: isDarkMode ? '#999999' : '#999999',
       marginTop: 8,
     },
-    settingRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: isDarkMode ? '#333333' : '#E0E0E0',
-    },
-    settingText: {
-      fontSize: 16,
-      color: isDarkMode ? '#FFFFFF' : '#000000',
-    },
     bottomNav: {
       flexDirection: 'row',
       justifyContent: 'space-around',
@@ -259,6 +290,35 @@ export default function App() {
       color: isDarkMode ? '#FFFFFF' : '#000000',
       marginBottom: 8,
     },
+    templateBubbleContainer: {
+      marginBottom: 16,
+    },
+    templateBubbleScroll: {
+      flexDirection: 'row',
+      paddingHorizontal: 8,
+    },
+    templateBubble: {
+      backgroundColor: '#E0E0E0',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      marginHorizontal: 4,
+    },
+    templateBubbleText: {
+      color: '#000000',
+      fontSize: 14,
+    },
+    selectedTemplateBubble: {
+      backgroundColor: '#25D366',
+    },
+    selectedTemplateBubbleText: {
+      color: '#FFFFFF',
+    },
+    clearButton: {
+      backgroundColor: '#FF3B30',
+      marginTop: 10,
+      marginBottom: 20,
+    },
   });
 
   const renderPage = () => {
@@ -267,16 +327,14 @@ export default function App() {
         return (
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-          >
+            style={{flex: 1}}>
             <ScrollView>
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={countryCode}
-                  onValueChange={(itemValue) => setCountryCode(itemValue)}
-                  style={styles.picker}
-                >
-                  {countryCodes.map((country) => (
+                  onValueChange={itemValue => setCountryCode(itemValue)}
+                  style={styles.picker}>
+                  {countryCodes.map(country => (
                     <Picker.Item
                       key={country.value}
                       label={country.label}
@@ -293,15 +351,41 @@ export default function App() {
                 onChangeText={setPhoneNumber}
                 keyboardType="phone-pad"
               />
+              <View style={styles.templateBubbleContainer}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.templateBubbleScroll}>
+                  {messageTemplates.map((template, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.templateBubble,
+                        selectedTemplate === template && styles.selectedTemplateBubble,
+                      ]}
+                      onPress={() => handleTemplateChange(template)}>
+                      <Text
+                        style={[
+                          styles.templateBubbleText,
+                          selectedTemplate === template && styles.selectedTemplateBubbleText,
+                        ]}>
+                        {template}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
               <TextInput
-                style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+                style={[styles.input, {height: 100, textAlignVertical: 'top'}]}
                 placeholder="Type your message..."
                 placeholderTextColor={isDarkMode ? '#999999' : '#666666'}
                 value={message}
                 onChangeText={setMessage}
                 multiline
               />
-              <TouchableOpacity style={styles.button} onPress={handleSendMessage}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleSendMessage}>
                 <Text style={styles.buttonText}>Send Message</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -309,69 +393,77 @@ export default function App() {
         );
       case 'recentMessages':
         return (
-          <ScrollView>
+          <View style={{flex: 1}}>
             {recentMessages.length === 0 ? (
               <Text style={styles.messageText}>No recent messages</Text>
             ) : (
-              recentMessages.map((msg, index) => (
-                <View key={index} style={styles.messageCard}>
-                  <Text style={styles.messageNumber}>{msg.number}</Text>
-                  <Text style={styles.messageText}>{msg.message}</Text>
-                  <Text style={styles.messageDate}>
-                    {new Date(msg.date).toLocaleString()}
-                  </Text>
-                </View>
-              ))
+              <>
+                <TouchableOpacity
+                  style={[styles.button, styles.clearButton]}
+                  onPress={clearHistory}>
+                  <Text style={styles.buttonText}>Clear History</Text>
+                </TouchableOpacity>
+                <ScrollView>
+                  {recentMessages.map((msg, index) => (
+                    <View key={index} style={styles.messageCard}>
+                      <Text style={styles.messageNumber}>{msg.number}</Text>
+                      <Text style={styles.messageText}>{msg.message}</Text>
+                      <Text style={styles.messageDate}>
+                        {new Date(msg.date).toLocaleString()}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
             )}
-          </ScrollView>
+          </View>
         );
-      case 'settings':
         return (
-          <ScrollView>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingText}>Dark Mode</Text>
-              <Switch
-                value={isDarkMode}
-                onValueChange={toggleDarkMode}
-                trackColor={{ false: '#767577', true: '#81b0ff' }}
-                thumbColor={isDarkMode ? '#f5dd4b' : '#f4f3f4'}
-              />
-            </View>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingText}>Push Notifications</Text>
-              <Switch
-                value={true}
-                onValueChange={() => {}}
-                trackColor={{ false: '#767577', true: '#81b0ff' }}
-                thumbColor={'#f5dd4b'}
-              />
-            </View>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingText}>Hide Online Status</Text>
-              <Switch
-                value={false}
-                onValueChange={() => {}}
-                trackColor={{ false: '#767577', true: '#81b0ff' }}
-                thumbColor={'#f4f3f4'}
-              />
-            </View>
-          </ScrollView>
+          <FlatList
+            data={statuses}
+            renderItem={({item}) => (
+              <View style={styles.statusItem}>
+                <Image
+                  source={{uri: `file://${item.path}`}}
+                  style={styles.statusImage}
+                />
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={() => saveStatus(item)}>
+                  <Text style={styles.saveButtonText}>Save to Gallery</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            keyExtractor={item => item.path}
+            numColumns={2}
+          />
         );
       case 'about':
         return (
           <ScrollView>
             <Text style={styles.aboutText}>Version 2.0.0</Text>
             <Text style={styles.aboutText}>
-              WhatsApp Direct is a convenient tool to send WhatsApp messages without saving contacts. It's designed for quick and easy communication on the go.
+              WhatsApp Direct is a convenient tool to send WhatsApp messages
+              without saving contacts. It's designed for quick and easy
+              communication on the go.
             </Text>
             <Text style={styles.aboutText}>Features:</Text>
             <View style={styles.aboutList}>
-              <Text style={styles.aboutListItem}>• Send messages to unsaved numbers</Text>
-              <Text style={styles.aboutListItem}>• Recent messages history</Text>
+              <Text style={styles.aboutListItem}>
+                • Send messages to unsaved numbers
+              </Text>
+              <Text style={styles.aboutListItem}>
+                • Recent messages history
+              </Text>
               <Text style={styles.aboutListItem}>• Dark mode support</Text>
               <Text style={styles.aboutListItem}>• Multiple country codes</Text>
+              <Text style={styles.aboutListItem}>
+                • View and save WhatsApp statuses
+              </Text>
             </View>
-            <Text style={styles.aboutText}>© 2023 WhatsApp Direct. All rights reserved.</Text>
+            <Text style={styles.aboutText}>
+              © 2023 WhatsApp Direct. All rights reserved.
+            </Text>
           </ScrollView>
         );
       default:
@@ -383,62 +475,91 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
+        <Image source={require('./assets/logo.png')} style={styles.logo} />
         <Text style={styles.headerTitle}>
           {currentPage === 'directMessage'
             ? 'Send Message'
             : currentPage === 'recentMessages'
             ? 'Recent Messages'
-            : currentPage === 'settings'
-            ? 'Settings'
+            : currentPage === 'status'
+            ? 'Statuses'
             : 'About'}
         </Text>
+        <Switch
+          value={isDarkMode}
+          onValueChange={toggleDarkMode}
+          trackColor={{false: '#767577', true: '#81b0ff'}}
+          thumbColor={isDarkMode ? '#f5dd4b' : '#f4f3f4'}
+        />
       </View>
       <View style={styles.content}>{renderPage()}</View>
       {!isKeyboardVisible && (
-        <Animated.View style={[styles.bottomNav, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.bottomNav, {opacity: fadeAnim}]}>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('directMessage')}
-          >
+            onPress={() => setCurrentPage('directMessage')}>
             <Icon
               name="send"
               size={24}
-              color={currentPage === 'directMessage' ? '#25D366' : isDarkMode ? '#FFFFFF' : '#000000'}
+              color={
+                currentPage === 'directMessage'
+                  ? '#25D366'
+                  : isDarkMode
+                  ? '#FFFFFF'
+                  : '#000000'
+              }
             />
-            <Text style={[styles.navButtonText, currentPage === 'directMessage' && { color: '#25D366' }]}>Send</Text>
+            <Text
+              style={[
+                styles.navButtonText,
+                currentPage === 'directMessage' && {color: '#25D366'},
+              ]}>
+              Send
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('recentMessages')}
-          >
+            onPress={() => setCurrentPage('recentMessages')}>
             <Icon
               name="chatbubbles"
               size={24}
-              color={currentPage === 'recentMessages' ? '#25D366' : isDarkMode ? '#FFFFFF' : '#000000'}
+              color={
+                currentPage === 'recentMessages'
+                  ? '#25D366'
+                  : isDarkMode
+                  ? '#FFFFFF'
+                  : '#000000'
+              }
             />
-            <Text style={[styles.navButtonText,   currentPage === 'recentMessages' && { color: '#25D366' }]}>Recent</Text>
+            <Text
+              style={[
+                styles.navButtonText,
+                currentPage === 'recentMessages' && {color: '#25D366'},
+              ]}>
+              Recent
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('settings')}
-          >
-            <Icon
-              name="settings"
-              size={24}
-              color={currentPage === 'settings' ? '#25D366' : isDarkMode ? '#FFFFFF' : '#000000'}
-            />
-            <Text style={[styles.navButtonText, currentPage === 'settings' && { color: '#25D366' }]}>Settings</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => setCurrentPage('about')}
-          >
+            onPress={() => setCurrentPage('about')}>
             <Icon
               name="information-circle"
               size={24}
-              color={currentPage === 'about' ? '#25D366' : isDarkMode ? '#FFFFFF' : '#000000'}
+              color={
+                currentPage === 'about'
+                  ? '#25D366'
+                  : isDarkMode
+                  ? '#FFFFFF'
+                  : '#000000'
+              }
             />
-            <Text style={[styles.navButtonText, currentPage === 'about' && { color: '#25D366' }]}>About</Text>
+            <Text
+              style={[
+                styles.navButtonText,
+                currentPage === 'about' && {color: '#25D366'},
+              ]}>
+              About
+            </Text>
           </TouchableOpacity>
         </Animated.View>
       )}
