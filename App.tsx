@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,25 +13,25 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   StatusBar,
-  Alert,
+  SafeAreaView,
 } from 'react-native';
-import {Picker} from '@react-native-picker/picker';
+import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const countryCodes = [
-  {value: '1', label: 'USA (+1)'},
-  {value: '44', label: 'UK (+44)'},
-  {value: '91', label: 'India (+91)'},
-  {value: '86', label: 'China (+86)'},
-  {value: '81', label: 'Japan (+81)'},
-  {value: '49', label: 'Germany (+49)'},
-  {value: '33', label: 'France (+33)'},
-  {value: '55', label: 'Brazil (+55)'},
+  { value: '1', label: 'USA (+1)' },
+  { value: '44', label: 'UK (+44)' },
+  { value: '91', label: 'India (+91)' },
+  { value: '86', label: 'China (+86)' },
+  { value: '81', label: 'Japan (+81)' },
+  { value: '49', label: 'Germany (+49)' },
+  { value: '33', label: 'France (+33)' },
+  { value: '55', label: 'Brazil (+55)' },
 ];
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState('directMessage');
   const [countryCode, setCountryCode] = useState('1');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [message, setMessage] = useState('');
@@ -53,7 +53,7 @@ export default function App() {
           duration: 200,
           useNativeDriver: true,
         }).start();
-      },
+      }
     );
     const keyboardDidHideListener = Keyboard.addListener(
       'keyboardDidHide',
@@ -64,7 +64,7 @@ export default function App() {
           duration: 200,
           useNativeDriver: true,
         }).start();
-      },
+      }
     );
 
     return () => {
@@ -95,7 +95,7 @@ export default function App() {
     }
   };
 
-  const saveRecentMessages = async messages => {
+  const saveRecentMessages = async (messages) => {
     try {
       await AsyncStorage.setItem('recentMessages', JSON.stringify(messages));
     } catch (error) {
@@ -103,7 +103,7 @@ export default function App() {
     }
   };
 
-  const saveDarkModeSetting = async isDark => {
+  const saveDarkModeSetting = async (isDark) => {
     try {
       await AsyncStorage.setItem('darkMode', JSON.stringify(isDark));
     } catch (error) {
@@ -117,14 +117,14 @@ export default function App() {
     const url = `whatsapp://send?phone=${fullNumber}&text=${encodedMessage}`;
 
     Linking.canOpenURL(url)
-      .then(supported => {
+      .then((supported) => {
         if (!supported) {
-          Alert.alert('WhatsApp is not installed on this device');
+          alert('WhatsApp is not installed on this device');
         } else {
           return Linking.openURL(url);
         }
       })
-      .catch(err => console.error('An error occurred', err));
+      .catch((err) => console.error('An error occurred', err));
 
     const newMessage = {
       number: fullNumber,
@@ -139,7 +139,7 @@ export default function App() {
     setMessage('');
   };
 
-  const toggleDarkMode = value => {
+  const toggleDarkMode = (value) => {
     setIsDarkMode(value);
     saveDarkModeSetting(value);
   };
@@ -148,60 +148,59 @@ export default function App() {
     container: {
       flex: 1,
       backgroundColor: isDarkMode ? '#121212' : '#F0F0F0',
-      paddingTop: StatusBar.currentHeight,
     },
     content: {
       flex: 1,
-      padding: 20,
+      padding: 16,
     },
-    title: {
-      fontSize: 28,
-      fontWeight: 'bold',
-      marginBottom: 20,
-      textAlign: 'center',
-      color: isDarkMode ? '#FFFFFF' : '#000000',
-    },
-    subtitle: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      marginBottom: 15,
-      color: isDarkMode ? '#FFFFFF' : '#000000',
-    },
-    button: {
-      backgroundColor: isDarkMode ? '#3700B3' : '#6200EE',
-      padding: 15,
-      borderRadius: 8,
-      marginBottom: 15,
+    header: {
       flexDirection: 'row',
+      justifyContent: 'space-between',
       alignItems: 'center',
-      justifyContent: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+      borderBottomWidth: 1,
+      borderBottomColor: isDarkMode ? '#333333' : '#E0E0E0',
     },
-    buttonText: {
-      color: '#FFFFFF',
-      fontSize: 18,
-      marginLeft: 10,
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: isDarkMode ? '#FFFFFF' : '#000000',
     },
     input: {
       backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
       color: isDarkMode ? '#FFFFFF' : '#000000',
-      padding: 10,
+      padding: 12,
       borderRadius: 8,
-      marginBottom: 15,
+      marginBottom: 16,
       fontSize: 16,
     },
     pickerContainer: {
       backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
       borderRadius: 8,
-      marginBottom: 15,
+      marginBottom: 16,
     },
     picker: {
       color: isDarkMode ? '#FFFFFF' : '#000000',
     },
+    button: {
+      backgroundColor: '#25D366',
+      padding: 16,
+      borderRadius: 8,
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    buttonText: {
+      color: '#FFFFFF',
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
     messageCard: {
       backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
-      padding: 15,
+      padding: 16,
       borderRadius: 8,
-      marginBottom: 15,
+      marginBottom: 16,
     },
     messageNumber: {
       fontSize: 16,
@@ -211,95 +210,73 @@ export default function App() {
     messageText: {
       fontSize: 14,
       color: isDarkMode ? '#CCCCCC' : '#666666',
-      marginTop: 5,
+      marginTop: 8,
     },
     messageDate: {
       fontSize: 12,
       color: isDarkMode ? '#999999' : '#999999',
-      marginTop: 5,
+      marginTop: 8,
     },
     settingRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 15,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: isDarkMode ? '#333333' : '#E0E0E0',
     },
     settingText: {
-      fontSize: 18,
+      fontSize: 16,
       color: isDarkMode ? '#FFFFFF' : '#000000',
     },
     bottomNav: {
       flexDirection: 'row',
       justifyContent: 'space-around',
-      backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
-      paddingVertical: 10,
+      backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+      paddingVertical: 12,
       borderTopWidth: 1,
-      borderTopColor: isDarkMode ? '#444444' : '#DDDDDD',
+      borderTopColor: isDarkMode ? '#333333' : '#E0E0E0',
     },
     navButton: {
-      padding: 10,
+      alignItems: 'center',
+    },
+    navButtonText: {
+      marginTop: 4,
+      fontSize: 12,
+      color: isDarkMode ? '#FFFFFF' : '#000000',
     },
     aboutText: {
       fontSize: 16,
       color: isDarkMode ? '#FFFFFF' : '#000000',
-      marginBottom: 10,
+      marginBottom: 16,
     },
     aboutList: {
-      marginLeft: 20,
-      marginBottom: 10,
+      marginLeft: 16,
+      marginBottom: 16,
     },
     aboutListItem: {
       fontSize: 16,
       color: isDarkMode ? '#FFFFFF' : '#000000',
-      marginBottom: 5,
+      marginBottom: 8,
     },
   });
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'home':
-        return (
-          <ScrollView>
-            <Text style={styles.title}>WhatsApp Direct</Text>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => setCurrentPage('directMessage')}>
-              <Icon name="send" size={24} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Send Direct Message</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => setCurrentPage('recentMessages')}>
-              <Icon name="chatbubbles" size={24} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Recent Messages</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => setCurrentPage('settings')}>
-              <Icon name="settings" size={24} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Settings</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => setCurrentPage('about')}>
-              <Icon name="information-circle" size={24} color="#FFFFFF" />
-              <Text style={styles.buttonText}>About</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        );
       case 'directMessage':
         return (
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{flex: 1}}>
+            style={{ flex: 1 }}
+          >
             <ScrollView>
-              <Text style={styles.subtitle}>Send Direct Message</Text>
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={countryCode}
-                  onValueChange={itemValue => setCountryCode(itemValue)}
-                  style={styles.picker}>
-                  {countryCodes.map(country => (
+                  onValueChange={(itemValue) => setCountryCode(itemValue)}
+                  style={styles.picker}
+                >
+                  {countryCodes.map((country) => (
                     <Picker.Item
                       key={country.value}
                       label={country.label}
@@ -317,17 +294,14 @@ export default function App() {
                 keyboardType="phone-pad"
               />
               <TextInput
-                style={[styles.input, {height: 100, textAlignVertical: 'top'}]}
+                style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
                 placeholder="Type your message..."
                 placeholderTextColor={isDarkMode ? '#999999' : '#666666'}
                 value={message}
                 onChangeText={setMessage}
                 multiline
               />
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleSendMessage}>
-                <Icon name="send" size={24} color="#FFFFFF" />
+              <TouchableOpacity style={styles.button} onPress={handleSendMessage}>
                 <Text style={styles.buttonText}>Send Message</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -336,7 +310,6 @@ export default function App() {
       case 'recentMessages':
         return (
           <ScrollView>
-            <Text style={styles.subtitle}>Recent Messages</Text>
             {recentMessages.length === 0 ? (
               <Text style={styles.messageText}>No recent messages</Text>
             ) : (
@@ -355,13 +328,12 @@ export default function App() {
       case 'settings':
         return (
           <ScrollView>
-            <Text style={styles.subtitle}>Settings</Text>
             <View style={styles.settingRow}>
               <Text style={styles.settingText}>Dark Mode</Text>
               <Switch
                 value={isDarkMode}
                 onValueChange={toggleDarkMode}
-                trackColor={{false: '#767577', true: '#81b0ff'}}
+                trackColor={{ false: '#767577', true: '#81b0ff' }}
                 thumbColor={isDarkMode ? '#f5dd4b' : '#f4f3f4'}
               />
             </View>
@@ -370,7 +342,7 @@ export default function App() {
               <Switch
                 value={true}
                 onValueChange={() => {}}
-                trackColor={{false: '#767577', true: '#81b0ff'}}
+                trackColor={{ false: '#767577', true: '#81b0ff' }}
                 thumbColor={'#f5dd4b'}
               />
             </View>
@@ -379,7 +351,7 @@ export default function App() {
               <Switch
                 value={false}
                 onValueChange={() => {}}
-                trackColor={{false: '#767577', true: '#81b0ff'}}
+                trackColor={{ false: '#767577', true: '#81b0ff' }}
                 thumbColor={'#f4f3f4'}
               />
             </View>
@@ -388,27 +360,18 @@ export default function App() {
       case 'about':
         return (
           <ScrollView>
-            <Text style={styles.subtitle}>About WhatsApp Direct</Text>
             <Text style={styles.aboutText}>Version 2.0.0</Text>
             <Text style={styles.aboutText}>
-              WhatsApp Direct is a convenient tool to send WhatsApp messages
-              without saving contacts. It's designed for quick and easy
-              communication on the go.
+              WhatsApp Direct is a convenient tool to send WhatsApp messages without saving contacts. It's designed for quick and easy communication on the go.
             </Text>
             <Text style={styles.aboutText}>Features:</Text>
             <View style={styles.aboutList}>
-              <Text style={styles.aboutListItem}>
-                • Send messages to unsaved numbers
-              </Text>
-              <Text style={styles.aboutListItem}>
-                • Recent messages history
-              </Text>
+              <Text style={styles.aboutListItem}>• Send messages to unsaved numbers</Text>
+              <Text style={styles.aboutListItem}>• Recent messages history</Text>
               <Text style={styles.aboutListItem}>• Dark mode support</Text>
               <Text style={styles.aboutListItem}>• Multiple country codes</Text>
             </View>
-            <Text style={styles.aboutText}>
-              © 2023 WhatsApp Direct. All rights reserved.
-            </Text>
+            <Text style={styles.aboutText}>© 2023 WhatsApp Direct. All rights reserved.</Text>
           </ScrollView>
         );
       default:
@@ -417,59 +380,68 @@ export default function App() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <View style={styles.content}>
-        {currentPage !== 'home' && (
-          <TouchableOpacity
-            style={[styles.button, {marginBottom: 20}]}
-            onPress={() => setCurrentPage('home')}>
-            <Icon name="arrow-back" size={24} color="#FFFFFF" />
-            <Text style={styles.buttonText}>Back to Home</Text>
-          </TouchableOpacity>
-        )}
-        {renderPage()}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>
+          {currentPage === 'directMessage'
+            ? 'Send Message'
+            : currentPage === 'recentMessages'
+            ? 'Recent Messages'
+            : currentPage === 'settings'
+            ? 'Settings'
+            : 'About'}
+        </Text>
       </View>
-      {currentPage !== 'home' && !isKeyboardVisible && (
-        <Animated.View style={[styles.bottomNav, {opacity: fadeAnim}]}>
+      <View style={styles.content}>{renderPage()}</View>
+      {!isKeyboardVisible && (
+        <Animated.View style={[styles.bottomNav, { opacity: fadeAnim }]}>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('directMessage')}>
+            onPress={() => setCurrentPage('directMessage')}
+          >
             <Icon
               name="send"
               size={24}
-              color={isDarkMode ? '#FFFFFF' : '#000000'}
+              color={currentPage === 'directMessage' ? '#25D366' : isDarkMode ? '#FFFFFF' : '#000000'}
             />
+            <Text style={[styles.navButtonText, currentPage === 'directMessage' && { color: '#25D366' }]}>Send</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('recentMessages')}>
+            onPress={() => setCurrentPage('recentMessages')}
+          >
             <Icon
               name="chatbubbles"
               size={24}
-              color={isDarkMode ? '#FFFFFF' : '#000000'}
+              color={currentPage === 'recentMessages' ? '#25D366' : isDarkMode ? '#FFFFFF' : '#000000'}
             />
+            <Text style={[styles.navButtonText,   currentPage === 'recentMessages' && { color: '#25D366' }]}>Recent</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('settings')}>
+            onPress={() => setCurrentPage('settings')}
+          >
             <Icon
               name="settings"
               size={24}
-              color={isDarkMode ? '#FFFFFF' : '#000000'}
+              color={currentPage === 'settings' ? '#25D366' : isDarkMode ? '#FFFFFF' : '#000000'}
             />
+            <Text style={[styles.navButtonText, currentPage === 'settings' && { color: '#25D366' }]}>Settings</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navButton}
-            onPress={() => setCurrentPage('about')}>
+            onPress={() => setCurrentPage('about')}
+          >
             <Icon
               name="information-circle"
               size={24}
-              color={isDarkMode ? '#FFFFFF' : '#000000'}
+              color={currentPage === 'about' ? '#25D366' : isDarkMode ? '#FFFFFF' : '#000000'}
             />
+            <Text style={[styles.navButtonText, currentPage === 'about' && { color: '#25D366' }]}>About</Text>
           </TouchableOpacity>
         </Animated.View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
