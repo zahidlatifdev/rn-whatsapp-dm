@@ -18,25 +18,24 @@ import {
   Alert,
   PermissionsAndroid,
 } from 'react-native';
-import {Picker} from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {ReactNativeScannerView} from '@pushpendersingh/react-native-scanner';
+import {parsePhoneNumber, isValidPhoneNumber} from 'libphonenumber-js';
+import CountryPicker, {
+  Country,
+  CountryCode,
+} from 'react-native-country-picker-modal';
+import {getIPLocation} from 'react-ip-location';
+import {getCountryDialCodeFromCountryCodeOrNameOrFlagEmoji} from 'country-codes-flags-phone-codes';
 
-const countryCodes = [
-  {value: '1', label: 'USA (+1)'},
-  {value: '44', label: 'UK (+44)'},
-  {value: '91', label: 'India (+91)'},
-  {value: '86', label: 'China (+86)'},
-  {value: '81', label: 'Japan (+81)'},
-  {value: '49', label: 'Germany (+49)'},
-  {value: '33', label: 'France (+33)'},
-  {value: '55', label: 'Brazil (+55)'},
-  {value: '92', label: 'Pakistan (+92)'},
-];
+getIPLocation().then(result => {
+  console.log(result);
+});
 
 const messageTemplates = [
   'Hello, how are you?',
+  'Hi, are you available?',
   'I am interested in your services.',
   'Can we schedule a meeting?',
   'Thank you for your time.',
@@ -64,7 +63,9 @@ const requestCameraPermission = async () => {
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('directMessage');
-  const [countryCode, setCountryCode] = useState('1');
+  const [countryCode, setCountryCode] = useState<CountryCode>('US');
+  const [callingCode, setCallingCode] = useState('1');
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [message, setMessage] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -78,6 +79,7 @@ export default function App() {
   useEffect(() => {
     loadRecentMessages();
     loadDarkModeSetting();
+    detectUserCountry(); // Add this line
 
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
@@ -107,6 +109,24 @@ export default function App() {
       keyboardDidHideListener.remove();
     };
   }, []);
+
+  const detectUserCountry = async () => {
+    try {
+      const result = await getIPLocation();
+      if (result && result.country) {
+        setCountryCode(result.country);
+
+        console.log(
+          getCountryDialCodeFromCountryCodeOrNameOrFlagEmoji(result.country),
+        );
+        const callingCodeValue =
+          getCountryDialCodeFromCountryCodeOrNameOrFlagEmoji(result.country)?.replace("+", "");
+        callingCodeValue && setCallingCode(callingCodeValue);
+      }
+    } catch (error) {
+      console.error('Error detecting country:', error);
+    }
+  };
 
   const loadRecentMessages = async () => {
     try {
@@ -146,6 +166,14 @@ export default function App() {
     }
   };
 
+  const validatePhoneNumber = (number: string, country: string): boolean => {
+    try {
+      return isValidPhoneNumber(number, country);
+    } catch (error) {
+      return false;
+    }
+  };
+
   const handleSendMessage = async () => {
     let formattedPhoneNumber = phoneNumber;
 
@@ -154,17 +182,18 @@ export default function App() {
       formattedPhoneNumber = formattedPhoneNumber.substring(1);
     }
 
-    // Remove country code if present
-    if (formattedPhoneNumber.startsWith(countryCode)) {
-      formattedPhoneNumber = formattedPhoneNumber.substring(countryCode.length);
-    }
-
     // Remove plus sign if present
     if (formattedPhoneNumber.startsWith('+')) {
       formattedPhoneNumber = formattedPhoneNumber.substring(1);
     }
 
-    const fullNumber = `+${countryCode}${formattedPhoneNumber}`;
+    // Validate phone number
+    const fullNumber = `+${callingCode}${formattedPhoneNumber}`;
+    if (!validatePhoneNumber(fullNumber, countryCode)) {
+      Alert.alert('Invalid Phone Number', 'Please enter a valid phone number');
+      return;
+    }
+
     const encodedMessage = encodeURIComponent(message);
     const url = `whatsapp://send?phone=${fullNumber.replace(
       '+',
@@ -180,7 +209,14 @@ export default function App() {
         date: new Date().toISOString(),
         appType: selectedApp,
       };
-      const updatedMessages = [newMessage, ...recentMessages.slice(0, 4)];
+
+      // Remove any existing entry with the same number
+      const filteredMessages = recentMessages.filter(
+        msg => msg.number !== fullNumber,
+      );
+
+      // Add the new message to the top
+      const updatedMessages = [newMessage, ...filteredMessages.slice(0, 19)];
       setRecentMessages(updatedMessages);
       saveRecentMessages(updatedMessages);
 
@@ -250,6 +286,7 @@ export default function App() {
             'Could not open WhatsApp. Please make sure it is installed.',
           );
         });
+        saveScannedLinkToHistory(scannedValue, 'qr');
       } else if (phoneNumberMatch && phoneNumberMatch[1]) {
         // Handle phone number QR codes
         const scannedNumber = phoneNumberMatch[1];
@@ -266,6 +303,7 @@ export default function App() {
           setPhoneNumber(scannedNumber);
         }
         setCurrentPage('directMessage');
+        saveScannedLinkToHistory(scannedNumber, 'number');
       } else if (businessMatch) {
         // Handle business links
         Linking.openURL(scannedValue).catch(err => {
@@ -275,6 +313,7 @@ export default function App() {
             'Could not open WhatsApp Business. Please make sure it is installed.',
           );
         });
+        saveScannedLinkToHistory(scannedValue, 'message');
       } else {
         Alert.alert('Invalid QR Code', 'Please scan a valid WhatsApp QR code');
       }
@@ -284,6 +323,40 @@ export default function App() {
     setTimeout(() => {
       setIsScanning(true);
     }, 2000);
+  };
+
+  const saveScannedLinkToHistory = async (link, type) => {
+    const newMessage = {
+      number: link,
+      message: type,
+      date: new Date().toISOString(),
+      appType: selectedApp,
+    };
+
+    // Remove any existing entry with the same number or link
+    const filteredMessages = recentMessages.filter(msg => msg.number !== link);
+
+    // Add the new message to the top
+    const updatedMessages = [newMessage, ...filteredMessages.slice(0, 19)];
+    setRecentMessages(updatedMessages);
+    saveRecentMessages(updatedMessages);
+  };
+
+  const handleHistoryItemClick = async msg => {
+    const fullNumber = msg.number;
+    const parsedNumber = parsePhoneNumber(fullNumber);
+
+    if (parsedNumber) {
+      const country = parsedNumber.country;
+      const nationalNumber = parsedNumber.nationalNumber;
+
+      setCountryCode(country);
+      setCallingCode(parsedNumber.countryCallingCode);
+      setPhoneNumber(nationalNumber);
+      setCurrentPage('directMessage');
+    } else {
+      Alert.alert('Error', 'Invalid phone number format.');
+    }
   };
 
   const styles = StyleSheet.create({
@@ -516,7 +589,60 @@ export default function App() {
       borderBottomRightRadius: 8,
       fontSize: 16,
     },
+    countryPickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 16,
+      height: 50, // Adjust the height as needed
+    },
+    countryNameText: {
+      marginLeft: 8,
+      color: isDarkMode ? '#FFFFFF' : '#000000',
+      fontSize: 16,
+    },
   });
+
+  const onSelectCountry = (country: Country) => {
+    setCountryCode(country.cca2);
+    setCallingCode(country.callingCode[0]);
+  };
+
+  const renderCountryPicker = () => (
+    <TouchableOpacity
+      style={styles.countryPickerButton}
+      onPress={() => setShowCountryPicker(true)}>
+      <CountryPicker
+        withFilter
+        withFlag
+        withCountryNameButton
+        withCallingCode
+        withEmoji
+        onSelect={onSelectCountry}
+        countryCode={countryCode}
+        visible={showCountryPicker}
+        onClose={() => setShowCountryPicker(false)}
+        theme={{
+          backgroundColor: isDarkMode ? '#121212' : '#FFFFFF',
+          onBackgroundTextColor: isDarkMode ? '#FFFFFF' : '#000000',
+          filterPlaceholderTextColor: isDarkMode ? '#CCCCCC' : '#666666',
+          primaryColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+          primaryColorVariant: isDarkMode ? '#333333' : '#E0E0E0',
+          secondaryColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+        }}
+      />
+      <Text style={styles.countryNameText}>
+        {countryCode} +{callingCode}
+      </Text>
+      <Icon
+        name="chevron-down"
+        size={16}
+        color={isDarkMode ? '#FFFFFF' : '#000000'}
+      />
+    </TouchableOpacity>
+  );
 
   const renderPage = () => {
     switch (currentPage) {
@@ -576,22 +702,9 @@ export default function App() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={countryCode}
-                  onValueChange={itemValue => setCountryCode(itemValue)}
-                  style={styles.picker}>
-                  {countryCodes.map(country => (
-                    <Picker.Item
-                      key={country.value}
-                      label={country.label}
-                      value={country.value}
-                    />
-                  ))}
-                </Picker>
-              </View>
+              {renderCountryPicker()}
               <View style={styles.phoneNumberContainer}>
-                <Text style={styles.countryCodeText}>+{countryCode}</Text>
+                <Text style={styles.countryCodeText}>+{callingCode}</Text>
                 <TextInput
                   style={styles.phoneNumberInput}
                   placeholder="Phone Number"
@@ -657,7 +770,10 @@ export default function App() {
                 </TouchableOpacity>
                 <ScrollView>
                   {recentMessages.map((msg, index) => (
-                    <View key={index} style={styles.messageCard}>
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.messageCard}
+                      onPress={() => handleHistoryItemClick(msg)}>
                       <Text style={styles.messageNumber}>{msg.number}</Text>
                       <Text style={styles.messageText}>{msg.message}</Text>
                       <Text style={styles.messageDate}>
@@ -668,7 +784,7 @@ export default function App() {
                           {msg.appType === 'whatsapp' ? 'WhatsApp' : 'Business'}
                         </Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               </>
