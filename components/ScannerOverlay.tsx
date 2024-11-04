@@ -1,11 +1,18 @@
 import React from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 interface ScannerOverlayProps {
   isScanning: boolean;
+  flashEnabled: boolean;
+  toggleFlashlight: () => void;
 }
 
-export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({isScanning}) => {
+export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({
+  isScanning,
+  flashEnabled,
+  toggleFlashlight,
+}) => {
   const styles = StyleSheet.create({
     overlay: {
       position: 'absolute',
@@ -29,6 +36,14 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({isScanning}) => {
       marginTop: 20,
       textAlign: 'center',
     },
+    flashlightButton: {
+      marginTop: 20,
+      backgroundColor: '#25D366',
+      padding: 16,
+      borderRadius: 50,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
 
   return (
@@ -39,6 +54,15 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({isScanning}) => {
           ? 'Align QR code within frame to scan'
           : 'Processing scan...'}
       </Text>
+      <TouchableOpacity
+        style={styles.flashlightButton}
+        onPress={toggleFlashlight}>
+        <Icon
+          name={flashEnabled ? 'flashlight' : 'flashlight-outline'}
+          size={24}
+          color="#FFFFFF"
+        />
+      </TouchableOpacity>
     </View>
   );
 };

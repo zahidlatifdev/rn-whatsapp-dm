@@ -78,11 +78,10 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.wadm"
+    namespace "com.wadirect.mza"
     defaultConfig {
-        applicationId "com.wadm"
+        applicationId "com.wadirect.mza"
         minSdkVersion rootProject.ext.minSdkVersion
-        missingDimensionStrategy 'react-native-camera', 'general'
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"

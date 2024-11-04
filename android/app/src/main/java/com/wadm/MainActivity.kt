@@ -1,4 +1,4 @@
-package com.wadm
+package com.wadirect.mza
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

@@ -1,4 +1,4 @@
-package com.wadm
+package com.wadirect.mza
 
 import android.app.Application
 import com.facebook.react.PackageList

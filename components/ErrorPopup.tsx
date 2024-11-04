@@ -80,8 +80,7 @@ export const ErrorPopup: React.FC<ErrorPopupProps> = ({
   if (!isVisible && translateY._value === -100) return null;
 
   return (
-    <Animated.View
-      style={[styles.container, {transform: [{translateY}]}]}>
+    <Animated.View style={[styles.container, {transform: [{translateY}]}]}>
       <View style={styles.popup}>
         <Icon
           name="alert-circle"
