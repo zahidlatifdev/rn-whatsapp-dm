@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -76,6 +76,8 @@ export default function App() {
   const [selectedApp, setSelectedApp] = useState('whatsapp');
   const [isScanning, setIsScanning] = useState(true);
 
+  const toggleAnim = useRef(new Animated.Value(isDarkMode ? 1 : 0)).current;
+
   useEffect(() => {
     loadRecentMessages();
     loadDarkModeSetting();
@@ -110,6 +112,14 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    Animated.timing(toggleAnim, {
+      toValue: isDarkMode ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isDarkMode]);
+
   const detectUserCountry = async () => {
     try {
       const result = await getIPLocation();
@@ -120,7 +130,9 @@ export default function App() {
           getCountryDialCodeFromCountryCodeOrNameOrFlagEmoji(result.country),
         );
         const callingCodeValue =
-          getCountryDialCodeFromCountryCodeOrNameOrFlagEmoji(result.country)?.replace("+", "");
+          getCountryDialCodeFromCountryCodeOrNameOrFlagEmoji(
+            result.country,
+          )?.replace('+', '');
         callingCodeValue && setCallingCode(callingCodeValue);
       }
     } catch (error) {
@@ -386,6 +398,7 @@ export default function App() {
     logo: {
       width: 30,
       height: 30,
+      borderRadius: 5,
     },
     input: {
       backgroundColor: isDarkMode ? '#333333' : '#FFFFFF',
@@ -596,12 +609,34 @@ export default function App() {
       padding: 12,
       borderRadius: 8,
       marginBottom: 16,
-      height: 50, // Adjust the height as needed
+      height: 50,
     },
     countryNameText: {
       marginLeft: 8,
       color: isDarkMode ? '#FFFFFF' : '#000000',
       fontSize: 16,
+    },
+    modeToggleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      backgroundColor: isDarkMode ? '#333333' : '#E0E0E0',
+      borderRadius: 16,
+      padding: 2,
+      width: 70,
+      height: 32,
+    },
+    modeToggleButton: {
+      position: 'absolute',
+      width: 32,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modeToggleIcon: {
+      color: '#666666',
     },
   });
 
@@ -838,6 +873,11 @@ export default function App() {
     setCurrentPage(page);
   };
 
+  const togglePosition = toggleAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, 36], // Adjust these values based on your toggle size
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
@@ -852,12 +892,30 @@ export default function App() {
             ? 'WhatsApp QR Scanner'
             : 'About'}
         </Text>
-        <Switch
-          value={isDarkMode}
-          onValueChange={toggleDarkMode}
-          trackColor={{false: '#767577', true: '#81b0ff'}}
-          thumbColor={isDarkMode ? '#f5dd4b' : '#f4f3f4'}
-        />
+        <View style={styles.modeToggleContainer}>
+          <TouchableOpacity onPress={() => toggleDarkMode(false)}>
+            <Icon
+              name="sunny"
+              size={16}
+              color={isDarkMode ? '#999999' : '#FFB600'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => toggleDarkMode(true)}>
+            <Icon
+              name="moon"
+              size={14}
+              color={isDarkMode ? '#FFFFFF' : '#666666'}
+            />
+          </TouchableOpacity>
+          <Animated.View
+            style={[styles.modeToggleButton, {left: togglePosition}]}>
+            <Icon
+              name={isDarkMode ? 'moon' : 'sunny'}
+              size={14}
+              style={styles.modeToggleIcon}
+            />
+          </Animated.View>
+        </View>
       </View>
       <View style={styles.content}>{renderPage()}</View>
       {!isKeyboardVisible && (
