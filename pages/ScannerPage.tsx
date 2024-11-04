@@ -1,8 +1,12 @@
-import React, {useState} from 'react';
-import {View, Text, Alert, StyleSheet} from 'react-native';
-import {ReactNativeScannerView} from '@pushpendersingh/react-native-scanner';
+import React, {useState, useRef} from 'react';
+import {View, StyleSheet, TouchableOpacity} from 'react-native';
+import {
+  ReactNativeScannerView,
+  Commands,
+} from '@pushpendersingh/react-native-scanner';
 import {ScannerOverlay} from '../components/ScannerOverlay';
 import {handleQRCodeScanned} from '../utils/lib/scannerUtils';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 interface ScannerPageProps {
   isDarkMode: boolean;
@@ -24,6 +28,8 @@ export const ScannerPage: React.FC<ScannerPageProps> = ({
   selectedApp,
 }) => {
   const [isScanning, setIsScanning] = useState(true);
+  const [flashEnabled, setFlashEnabled] = useState(false);
+  const cameraRef = useRef(null);
 
   const onQRCodeScanned = ({nativeEvent}) => {
     handleQRCodeScanned({
@@ -39,6 +45,15 @@ export const ScannerPage: React.FC<ScannerPageProps> = ({
     });
   };
 
+  const toggleFlashlight = () => {
+    if (flashEnabled) {
+      Commands.disableFlashlight(cameraRef.current);
+    } else {
+      Commands.enableFlashlight(cameraRef.current);
+    }
+    setFlashEnabled(!flashEnabled);
+  };
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -47,16 +62,31 @@ export const ScannerPage: React.FC<ScannerPageProps> = ({
     cameraContainer: {
       flex: 1,
     },
+    flashlightButton: {
+      position: 'absolute',
+      bottom: 30,
+      right: 30,
+      backgroundColor: '#25D366',
+      padding: 16,
+      borderRadius: 50,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
 
   return (
     <View style={styles.container}>
       <ReactNativeScannerView
+        ref={cameraRef}
         style={styles.cameraContainer}
         onQrScanned={onQRCodeScanned}
         scanEnabled={isScanning}
       />
-      <ScannerOverlay isScanning={isScanning} />
+      <ScannerOverlay
+        isScanning={isScanning}
+        flashEnabled={flashEnabled}
+        toggleFlashlight={toggleFlashlight}
+      />
     </View>
   );
 };
