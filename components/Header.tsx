@@ -9,8 +9,12 @@ import {
 import React from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
 
-export default function Header({ toggleDarkMode, isDarkMode, currentPage, togglePosition }) {
-    
+export default function Header({
+  toggleDarkMode,
+  isDarkMode,
+  currentPage,
+  togglePosition,
+}) {
   const styles = StyleSheet.create({
     logo: {
       width: 30,

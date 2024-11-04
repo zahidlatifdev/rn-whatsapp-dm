@@ -35,7 +35,9 @@ export const ScannerOverlay: React.FC<ScannerOverlayProps> = ({isScanning}) => {
     <View style={styles.overlay}>
       <View style={styles.frame} />
       <Text style={styles.text}>
-        {isScanning ? 'Align QR code within frame to scan' : 'Processing scan...'}
+        {isScanning
+          ? 'Align QR code within frame to scan'
+          : 'Processing scan...'}
       </Text>
     </View>
   );

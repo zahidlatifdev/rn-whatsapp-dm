@@ -27,6 +27,7 @@ import {RecentMessagesPage} from './pages/RecentMessagesPage';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import DirectMessagePage from './pages/DirectMessagePage';
+import {ErrorPopup} from './components/ErrorPopup';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('directMessage');
@@ -41,6 +42,7 @@ export default function App() {
   const [fadeAnim] = useState(new Animated.Value(1));
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [selectedApp, setSelectedApp] = useState('whatsapp');
+  const [error, setError] = useState<string | null>(null);
 
   const toggleAnim = useRef(new Animated.Value(isDarkMode ? 1 : 0)).current;
 
@@ -91,10 +93,6 @@ export default function App() {
       const result = await getIPLocation();
       if (result && result.country) {
         setCountryCode(result.country);
-
-        console.log(
-          getCountryDialCodeFromCountryCodeOrNameOrFlagEmoji(result.country),
-        );
         const callingCodeValue =
           getCountryDialCodeFromCountryCodeOrNameOrFlagEmoji(
             result.country,
@@ -152,35 +150,46 @@ export default function App() {
     }
   };
 
+  const showError = (message: string) => {
+    setError(message);
+    setTimeout(() => setError(null), 3000); // Auto dismiss after 3 seconds
+  };
+
   const handleSendMessage = async () => {
-    let formattedPhoneNumber = phoneNumber;
-
-    // Remove leading zero if present
-    if (formattedPhoneNumber.startsWith('0')) {
-      formattedPhoneNumber = formattedPhoneNumber.substring(1);
-    }
-
-    // Remove plus sign if present
-    if (formattedPhoneNumber.startsWith('+')) {
-      formattedPhoneNumber = formattedPhoneNumber.substring(1);
-    }
-
-    // Validate phone number
-    const fullNumber = `+${callingCode}${formattedPhoneNumber}`;
-    if (!validatePhoneNumber(fullNumber, countryCode)) {
-      Alert.alert('Invalid Phone Number', 'Please enter a valid phone number');
-      return;
-    }
-
-    const encodedMessage = encodeURIComponent(message);
-    const url = `whatsapp://send?phone=${fullNumber.replace(
-      '+',
-      '',
-    )}&text=${encodedMessage}`;
-
     try {
+      if (!phoneNumber.trim()) {
+        showError('Please enter a phone number');
+        return;
+      }
+
+      if (!message.trim()) {
+        showError('Please enter a message');
+        return;
+      }
+
+      let formattedPhoneNumber = phoneNumber;
+
+      if (formattedPhoneNumber.startsWith('0')) {
+        formattedPhoneNumber = formattedPhoneNumber.substring(1);
+      }
+
+      if (formattedPhoneNumber.startsWith('+')) {
+        formattedPhoneNumber = formattedPhoneNumber.substring(1);
+      }
+
+      const fullNumber = `+${callingCode}${formattedPhoneNumber}`;
+      if (!validatePhoneNumber(fullNumber, countryCode)) {
+        showError('Please enter a valid phone number');
+        return;
+      }
+
+      const encodedMessage = encodeURIComponent(message);
+      const url = `whatsapp://send?phone=${fullNumber.replace(
+        '+',
+        '',
+      )}&text=${encodedMessage}`;
+
       await Linking.openURL(url);
-      // If successful, save to history
       const newMessage = {
         number: fullNumber,
         message: message.slice(0, 30) + '...',
@@ -188,12 +197,10 @@ export default function App() {
         appType: selectedApp,
       };
 
-      // Remove any existing entry with the same number
       const filteredMessages = recentMessages.filter(
         msg => msg.number !== fullNumber,
       );
 
-      // Add the new message to the top
       const updatedMessages = [newMessage, ...filteredMessages.slice(0, 19)];
       setRecentMessages(updatedMessages);
       saveRecentMessages(updatedMessages);
@@ -201,9 +208,7 @@ export default function App() {
       setPhoneNumber('');
       setMessage('');
     } catch (err) {
-      console.error('Error opening WhatsApp:', err);
-      Alert.alert(
-        'Error',
+      showError(
         `Could not open ${
           selectedApp === 'whatsapp' ? 'WhatsApp' : 'WhatsApp Business'
         }. Please make sure it is installed.`,
@@ -250,10 +255,8 @@ export default function App() {
       appType: selectedApp,
     };
 
-    // Remove any existing entry with the same number or link
     const filteredMessages = recentMessages.filter(msg => msg.number !== link);
 
-    // Add the new message to the top
     const updatedMessages = [newMessage, ...filteredMessages.slice(0, 19)];
     setRecentMessages(updatedMessages);
     saveRecentMessages(updatedMessages);
@@ -354,7 +357,7 @@ export default function App() {
       onPress={() => setShowCountryPicker(true)}>
       <CountryPicker
         withFilter
-        withFlag
+        withFlagApp
         withCountryNameButton
         withCallingCode
         withEmoji
@@ -465,6 +468,12 @@ export default function App() {
           handlePageChange={handlePageChange}
         />
       )}
+      <ErrorPopup
+        message={error || ''}
+        isVisible={!!error}
+        onDismiss={() => setError(null)}
+        isDarkMode={isDarkMode}
+      />
     </SafeAreaView>
   );
 }
