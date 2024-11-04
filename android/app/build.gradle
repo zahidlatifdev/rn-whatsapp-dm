@@ -81,7 +81,7 @@ android {
     namespace "com.wadirect.mza"
     defaultConfig {
         applicationId "com.wadirect.mza"
-        minSdkVersion rootProject.ext.minSdkVersion
+        minSdkVersion rootProject.ext.minSdkVersionz
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
@@ -118,4 +118,14 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+}
+
+afterEvaluate {
+    tasks.named('generateDebugLintReportModel').configure {
+        dependsOn tasks.named('copyReactNativeVectorIconFonts')
+    }
+
+    tasks.named('lintAnalyzeDebug').configure {
+        dependsOn tasks.named('copyReactNativeVectorIconFonts')
+    }    
 }
