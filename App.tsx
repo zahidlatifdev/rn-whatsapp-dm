@@ -162,11 +162,6 @@ export default function App() {
         return;
       }
 
-      if (!message.trim()) {
-        showError('Please enter a message');
-        return;
-      }
-
       let formattedPhoneNumber = phoneNumber;
 
       if (formattedPhoneNumber.startsWith('0')) {
@@ -192,7 +187,7 @@ export default function App() {
       await Linking.openURL(url);
       const newMessage = {
         number: fullNumber,
-        message: message.slice(0, 30) + '...',
+        message: message ? message.slice(0, 30) + '...' : '',
         date: new Date().toISOString(),
         appType: selectedApp,
       };
